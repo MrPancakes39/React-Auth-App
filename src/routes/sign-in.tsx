@@ -8,9 +8,6 @@ function Page() {
   return (
     <div className="grid h-screen place-content-center">
       <SignIn />
-      <Link to="/" className="fixed left-2 top-2">
-        Go to index
-      </Link>
     </div>
   );
 }
