@@ -8,11 +8,6 @@ import { z } from "zod";
 import { useEffect, useRef } from "react";
 import { useAuth } from "../auth";
 
-const formSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
 const fallback = "/home" as const;
 
 export const Route = createFileRoute("/sign-in")({
@@ -35,10 +30,12 @@ function Page() {
   );
 }
 
-type FormInputs = {
-  email: () => string;
-  password: () => string;
-};
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+type FormSchemaType = z.infer<typeof formSchema>;
+type FormInputs = { [K in keyof FormSchemaType]: () => FormSchemaType[K] };
 
 function SignIn() {
   const { signIn, isAuthenticated } = useAuth();
@@ -71,6 +68,7 @@ function SignIn() {
     }
     const error = await signIn(result.data);
     if (error) {
+      console.error(error);
       console.error("Error signing in");
       return;
     }

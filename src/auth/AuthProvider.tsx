@@ -14,7 +14,7 @@ export type AuthContextType = {
   }: {
     email: string;
     password: string;
-  }) => Promise<void>;
+  }) => Promise<AuthError | null>;
   signIn: ({
     email,
     password,
@@ -22,16 +22,16 @@ export type AuthContextType = {
     email: string;
     password: string;
   }) => Promise<AuthError | null>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<AuthError | null>;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isAuthenticated: false,
-  signUp: async () => {},
+  signUp: async () => null,
   signIn: async () => null,
-  signOut: async () => {},
+  signOut: async () => null,
 });
 
 type AuthProviderProps = {
@@ -122,10 +122,18 @@ export function AuthProvider({ fallback, children }: AuthProviderProps) {
           return null;
         },
         signUp: async ({ email, password }) => {
-          await supabase.auth.signUp({ email, password });
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) {
+            return error;
+          }
+          return null;
         },
         signOut: async () => {
-          await supabase.auth.signOut();
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            return error;
+          }
+          return null;
         },
       }}
     >

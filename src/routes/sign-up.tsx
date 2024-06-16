@@ -1,4 +1,7 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { useAuth } from "../auth";
+import { useRef } from "react";
+import { z } from "zod";
 
 export const Route = createFileRoute("/sign-up")({
   component: () => <Page />,
@@ -12,9 +15,48 @@ function Page() {
   );
 }
 
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+type FormSchemaType = z.infer<typeof formSchema>;
+type FormInputs = { [K in keyof FormSchemaType]: () => FormSchemaType[K] };
+
 function SignUp() {
+  const { signUp } = useAuth();
+  const router = useRouter();
+  const navigate = Route.useNavigate();
+
+  const formInputs = useRef<FormInputs>({
+    email: () => "",
+    password: () => "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const result = formSchema.safeParse({
+      email: formInputs.current.email(),
+      password: formInputs.current.password(),
+    });
+    if (result.error) {
+      console.error("Invalid form data");
+      return;
+    }
+    const error = await signUp(result.data);
+    if (error) {
+      console.error(error);
+      console.error("Error signing up");
+      return;
+    }
+    console.log("Signed up successfully");
+    router.invalidate().then(() => navigate({ to: "/verify-email" }));
+  };
+
   return (
-    <form className="mb-20 flex w-[400px] max-w-[calc(-2.5rem_+_100vw)] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-lg">
+    <form
+      onSubmit={handleSubmit}
+      className="mb-20 flex w-[400px] max-w-[calc(-2.5rem_+_100vw)] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-lg"
+    >
       <div className="flex w-full flex-col gap-8 rounded-b-lg border-b bg-white p-10">
         <div className="text-center">
           <h1 className="text-base font-bold text-gray-800">
@@ -33,6 +75,12 @@ function SignUp() {
               Email address
             </label>
             <input
+              ref={(e) =>
+                (formInputs.current = {
+                  ...formInputs.current,
+                  email: () => e?.value ?? "",
+                })
+              }
               type="email"
               id="email"
               className="max-h-8 rounded-md border border-gray-300 px-1.5 py-3 text-sm outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:border-gray-400"
@@ -46,16 +94,19 @@ function SignUp() {
               Password
             </label>
             <input
+              ref={(e) =>
+                (formInputs.current = {
+                  ...formInputs.current,
+                  password: () => e?.value ?? "",
+                })
+              }
               type="password"
               id="password"
               className="max-h-8 rounded-md border border-gray-300 px-1.5 py-3 text-sm outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:border-gray-400"
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="transition- rounded-md border border-violet-600 bg-violet-500 px-3 py-2 text-sm text-white outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:bg-violet-400"
-        >
+        <button className="transition- rounded-md border border-violet-600 bg-violet-500 px-3 py-2 text-sm text-white outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:bg-violet-400">
           Continue
         </button>
       </div>
