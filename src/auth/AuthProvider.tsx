@@ -2,18 +2,36 @@ import { useQuery } from "@tanstack/react-query";
 import { createContext, useEffect, useState } from "react";
 import { SupabaseClient as supabase } from "./supabase-client";
 
-import type { Session } from "@supabase/supabase-js";
+import type { AuthError, Session } from "@supabase/supabase-js";
 
 export type AuthContextType = {
   session: Session | null;
   user: Session["user"] | null;
   isAuthenticated: boolean;
+  signUp: ({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) => Promise<void>;
+  signIn: ({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) => Promise<AuthError | null>;
+  signOut: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isAuthenticated: false,
+  signUp: async () => {},
+  signIn: async () => null,
+  signOut: async () => {},
 });
 
 type AuthProviderProps = {
@@ -93,6 +111,22 @@ export function AuthProvider({ fallback, children }: AuthProviderProps) {
         session,
         user,
         isAuthenticated: !!user,
+        signIn: async ({ email, password }) => {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) {
+            return error;
+          }
+          return null;
+        },
+        signUp: async ({ email, password }) => {
+          await supabase.auth.signUp({ email, password });
+        },
+        signOut: async () => {
+          await supabase.auth.signOut();
+        },
       }}
     >
       {children}

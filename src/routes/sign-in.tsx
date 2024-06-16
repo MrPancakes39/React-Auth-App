@@ -1,7 +1,30 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import {
+  Link,
+  createFileRoute,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router";
+import { z } from "zod";
+import { useEffect, useRef } from "react";
+import { useAuth } from "../auth";
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+const fallback = "/home" as const;
 
 export const Route = createFileRoute("/sign-in")({
   component: () => <Page />,
+  validateSearch: z.object({
+    redirect: z.string().optional().catch(""),
+  }),
+  beforeLoad: ({ context, search }) => {
+    if (context.auth.isAuthenticated) {
+      throw redirect({ to: search.redirect || fallback });
+    }
+  },
 });
 
 function Page() {
@@ -12,9 +35,53 @@ function Page() {
   );
 }
 
+type FormInputs = {
+  email: () => string;
+  password: () => string;
+};
+
 function SignIn() {
+  const { signIn, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router
+        .invalidate()
+        .then(() => navigate({ to: search.redirect || fallback }));
+    }
+  }, [isAuthenticated]);
+
+  const formInputs = useRef<FormInputs>({
+    email: () => "",
+    password: () => "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const result = formSchema.safeParse({
+      email: formInputs.current.email(),
+      password: formInputs.current.password(),
+    });
+    if (result.error) {
+      console.error("Invalid form data");
+      return;
+    }
+    const error = await signIn(result.data);
+    if (error) {
+      console.error("Error signing in");
+      return;
+    }
+    console.log("Signed in successfully");
+  };
+
   return (
-    <div className="mb-20 flex w-[400px] max-w-[calc(-2.5rem_+_100vw)] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-lg">
+    <form
+      onSubmit={handleSubmit}
+      className="mb-20 flex w-[400px] max-w-[calc(-2.5rem_+_100vw)] flex-col items-center justify-center overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-lg"
+    >
       <div className="flex w-full flex-col gap-8 rounded-b-lg border-b bg-white p-10">
         <div className="text-center">
           <h1 className="text-base font-bold text-gray-800">
@@ -33,6 +100,12 @@ function SignIn() {
               Email address
             </label>
             <input
+              ref={(e) =>
+                (formInputs.current = {
+                  ...formInputs.current,
+                  email: () => e?.value ?? "",
+                })
+              }
               type="email"
               id="email"
               className="max-h-8 rounded-md border border-gray-300 px-1.5 py-3 text-sm outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:border-gray-400"
@@ -46,16 +119,19 @@ function SignIn() {
               Password
             </label>
             <input
+              ref={(e) =>
+                (formInputs.current = {
+                  ...formInputs.current,
+                  password: () => e?.value ?? "",
+                })
+              }
               type="password"
               id="password"
               className="max-h-8 rounded-md border border-gray-300 px-1.5 py-3 text-sm outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:border-gray-400"
             />
           </div>
         </div>
-        <button
-          type="button"
-          className="transition- rounded-md border border-violet-600 bg-violet-500 px-3 py-2 text-sm text-white outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:bg-violet-400"
-        >
+        <button className="transition- rounded-md border border-violet-600 bg-violet-500 px-3 py-2 text-sm text-white outline-none focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-300 hover:bg-violet-400">
           Continue
         </button>
       </div>
@@ -68,6 +144,6 @@ function SignIn() {
           Sign up
         </Link>
       </div>
-    </div>
+    </form>
   );
 }
