@@ -32,7 +32,7 @@ function Page() {
 
 const formSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string(),
 });
 type FormSchemaType = z.infer<typeof formSchema>;
 type FormInputs = { [K in keyof FormSchemaType]: () => FormSchemaType[K] };
